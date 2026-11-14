@@ -1,8 +1,7 @@
 OO_PS4_TOOLCHAIN ?= /opt/toolchain
 
 TARGET = ps4aidoctor
-TYPE   = bin
-LIBS   = -lc -lkernel -lSceUserService -lScePad -lSceSysUtil
+LIBS   = -lc -lkernel -lSceUserService -lScePad
 
 SRC    = src/main.cpp
 OBJ    = $(SRC:.cpp=.o)
