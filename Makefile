@@ -9,10 +9,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Build with OpenOrbis Toolchain
+      - name: Run Open Orbis Toolchain
         uses: OpenOrbis/toolchain-action@main
         with:
-          version: latest
+          version: v0.5.1
           command: make
 
       - name: Upload Artifact
