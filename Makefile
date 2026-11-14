@@ -6,9 +6,6 @@ LIBS   = -lc -lkernel -lSceUserService -lScePad
 SRC    = src/main.cpp
 OBJ    = $(SRC:.cpp=.o)
 
-CXX = $(OO_PS4_TOOLCHAIN)/bin/linux/clang++
-CC  = $(OO_PS4_TOOLCHAIN)/bin/linux/clang
-
 CFLAGS   = -Wall -O2 -I$(OO_PS4_TOOLCHAIN)/include
 CXXFLAGS = $(CFLAGS) -std=c++17 -fno-exceptions -fno-rtti
 LDFLAGS  = -L$(OO_PS4_TOOLCHAIN)/lib
@@ -19,10 +16,10 @@ all: $(TARGET).elf
 	@echo "OK -> eboot.bin"
 
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	clang++ $(CXXFLAGS) -c $< -o $@
 
 $(TARGET).elf: $(OBJ)
-	$(CXX) $(OBJ) $(LDFLAGS) $(LIBS) -o $(TARGET).elf
+	clang++ $(OBJ) $(LDFLAGS) $(LIBS) -o $(TARGET).elf
 
 clean:
 	rm -f $(OBJ) $(TARGET).elf $(TARGET).oelf eboot.bin
