@@ -7,9 +7,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Fix Permissions
+        run: chmod -R 777 .
+
       - name: Build
         run: |
           docker run --rm -w /workspace -v "$(pwd)":/workspace \
+            --user $(id -u):$(id -g) \
             openorbisofficial/toolchain:latest make
 
       - uses: actions/upload-artifact@v4
