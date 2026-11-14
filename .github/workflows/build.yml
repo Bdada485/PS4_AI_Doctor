@@ -1,24 +1,20 @@
 name: Build PS4 AI-Doctor
+
 on: [push, workflow_dispatch]
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - name: Get Toolchain
+      - name: Build with Docker
         run: |
-          git clone --depth 1 https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain.git toolchain
-          chmod -R +x toolchain/bin/linux || true
+          docker run --rm -v "$(pwd):/src" -w /src openorbisofficial/toolchain make
 
-      - name: Compile
-        run: |
-          export OO_PS4_TOOLCHAIN=$PWD/toolchain
-          export PATH=$OO_PS4_TOOLCHAIN/bin/linux:$PATH
-          make
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
         with:
           name: eboot
           path: eboot.bin
