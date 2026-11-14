@@ -1,36 +1,24 @@
 name: Build PS4 AI-Doctor
-
 on: [push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Dependencies
+      - name: Get Toolchain
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake build-essential git libarchive-dev
+          git clone --depth 1 https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain.git toolchain
+          chmod -R +x toolchain/bin/linux || true
 
-      - name: Build OpenOrbis Toolchain
+      - name: Compile
         run: |
-          git clone --depth 1 https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain.git
-          cd OpenOrbis-PS4-Toolchain
-          cmake -S . -B build -DCMAKE_INSTALL_PREFIX=/opt/toolchain
-          cmake --build build --parallel 2
-          sudo cmake --install build
-          sudo chmod -R +x /opt/toolchain/bin/linux
-
-      - name: Compile PS4 Homebrew
-        run: |
-          export OO_PS4_TOOLCHAIN=/opt/toolchain
+          export OO_PS4_TOOLCHAIN=$PWD/toolchain
           export PATH=$OO_PS4_TOOLCHAIN/bin/linux:$PATH
           make
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: eboot
           path: eboot.bin
