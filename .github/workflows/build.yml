@@ -4,16 +4,30 @@ on: [push, workflow_dispatch]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Run Open Orbis Toolchain
-        uses: OpenOrbis/toolchain-action@main
-        with:
-          version: v0.5.1
-          command: make
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential git libarchive-dev
+
+      - name: Build OpenOrbis Toolchain
+        run: |
+          git clone --depth 1 https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain.git
+          cd OpenOrbis-PS4-Toolchain
+          cmake -S . -B build -DCMAKE_INSTALL_PREFIX=/opt/toolchain
+          cmake --build build --parallel 2
+          sudo cmake --install build
+          sudo chmod -R +x /opt/toolchain/bin/linux
+
+      - name: Compile PS4 Homebrew
+        run: |
+          export OO_PS4_TOOLCHAIN=/opt/toolchain
+          export PATH=$OO_PS4_TOOLCHAIN/bin/linux:$PATH
+          make
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
