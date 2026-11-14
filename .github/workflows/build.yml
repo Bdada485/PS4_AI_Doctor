@@ -1,0 +1,30 @@
+name: Build PS4 AI-Doctor
+
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld make
+          git clone --depth 1 https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain.git /opt/toolchain
+          chmod +x /opt/toolchain/bin/linux/*
+
+      - name: Build
+        run: |
+          export OO_PS4_TOOLCHAIN=/opt/toolchain
+          export PATH=$OO_PS4_TOOLCHAIN/bin/linux:$PATH
+          export CXX=$OO_PS4_TOOLCHAIN/bin/linux/clang++
+          export CC=$OO_PS4_TOOLCHAIN/bin/linux/clang
+          make
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: eboot
+          path: eboot.bin
