@@ -1,4 +1,4 @@
-OO_PS4_TOOLCHAIN ?= /opt/toolchain
+OO_PS4_TOOLCHAIN ?= /lib/OpenOrbisSDK
 
 TARGET = ps4aidoctor
 LIBS   = -lc -lkernel -lSceUserService -lScePad
