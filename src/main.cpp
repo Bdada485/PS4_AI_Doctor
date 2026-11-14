@@ -1,5 +1,4 @@
 // PS4 AI-Doctor & Resource Optimizer
-// Dev by Amir — Userland only
 #include <orbis/libkernel.h>
 #include <orbis/UserService.h>
 #include <orbis/Pad.h>
@@ -13,12 +12,10 @@
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 
-// ============ إشعار النظام (تعريف مباشر — يعمل دائماً) ============
 struct notify_request {
     char useless1[45];
     char message[3075];
 };
-
 extern "C" int sceKernelSendNotificationRequest(int, notify_request*, size_t, int);
 
 static void notify(const char* text) {
@@ -28,7 +25,6 @@ static void notify(const char* text) {
     sceKernelSendNotificationRequest(0, &req, sizeof(req), 0);
 }
 
-// ============ بيانات ============
 struct ErrEntry {
     std::string code, title, meaning;
     std::vector<std::string> causes, fixes;
@@ -37,7 +33,6 @@ struct ErrEntry {
 static std::vector<ErrEntry> gErrors;
 static int gUser = -1, gPad = -1;
 
-// ============ أدوات نص ============
 static std::string readAll(const char* path) {
     FILE* f = fopen(path, "rb");
     if (!f) return "";
@@ -85,7 +80,6 @@ static std::vector<std::string> arrayField(const std::string& o, const std::stri
     return out;
 }
 
-// ============ تحميل قاعدة الأخطاء ============
 static void loadErrors() {
     gErrors.clear();
     std::string raw = readAll("/app0/data/errors.json");
@@ -113,7 +107,6 @@ static void loadErrors() {
     }
 }
 
-// ============ فحص التخزين ============
 static void showStorage() {
     const char* mounts[] = {"/user", "/data", "/system_data", "/app", "/mnt/usb0"};
     printf("\n=== Storage Analysis ===\n\n");
@@ -134,7 +127,6 @@ static void showStorage() {
     }
 }
 
-// ============ تنظيف آمن ============
 static void cleanPath(const char* path, int* count, unsigned long long* freed) {
     DIR* d = opendir(path);
     if (!d) return;
@@ -167,14 +159,11 @@ static void runCleaner() {
     }
 
     printf("\n  deleted: %d files | freed: %.2f MB\n", count, freed / (1024.0 * 1024));
-
     notify("Clean Cache Success - Dev by Amir");
-
     printf("\n  [ SUCCESS ] Clean Cache Success\n");
     printf("              Dev by Amir\n");
 }
 
-// ============ إدخال ============
 static int pollPad() {
     if (gPad < 0) return 0;
     OrbisPadData d;
@@ -201,7 +190,6 @@ static void waitCircle() {
     }
 }
 
-// ============ تفاصيل خطأ ============
 static void showError(const ErrEntry& e) {
     printf("\033[2J\033[H");
     printf("==========================================\n");
@@ -222,11 +210,10 @@ static void showError(const ErrEntry& e) {
     waitCircle();
 }
 
-// ============ قائمة الأخطاء ============
 static void errorListScreen() {
     printf("\033[2J\033[H");
     if (gErrors.empty()) {
-        printf("Could not load errors.json from /app0/data/\n");
+        printf("Could not load errors.json\n");
         printf("\n  [O] back\n");
         waitCircle();
         return;
@@ -261,7 +248,6 @@ static void errorListScreen() {
     }
 }
 
-// ============ القائمة الرئيسية ============
 static void menu() {
     int sel = 0;
     const int N = 3;
@@ -308,14 +294,10 @@ static void menu() {
     }
 }
 
-// ============ نقطة الدخول ============
 int main() {
-    OrbisUserServiceInitializeParams up;
-    memset(&up, 0, sizeof(up));
-    up.priority = 256;
-    sceUserServiceInitialize(&up);
-    sceUserServiceGetForegroundUser(&gUser);
-
+    sceUserServiceInitialize(nullptr);
+    gUser = sceUserServiceGetForegroundUser(); // إصلاح: بدون وسائط
+    
     scePadInit();
     gPad = scePadOpen(gUser, 0, 0, nullptr);
 
