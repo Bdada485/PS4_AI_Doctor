@@ -1,21 +1,34 @@
 // PS4 AI-Doctor & Resource Optimizer
-// Dev by Amir — Userland only (No Kernel, No Risk)
+// Dev by Amir — Userland only
 #include <orbis/libkernel.h>
 #include <orbis/UserService.h>
 #include <orbis/Pad.h>
-#include <orbis/SysUtil.h>
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string>
 #include <vector>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 
-// ===================== بيانات =====================
+// ============ إشعار النظام (تعريف مباشر — يعمل دائماً) ============
+struct notify_request {
+    char useless1[45];
+    char message[3075];
+};
+
+extern "C" int sceKernelSendNotificationRequest(int, notify_request*, size_t, int);
+
+static void notify(const char* text) {
+    notify_request req;
+    memset(&req, 0, sizeof(req));
+    strncpy(req.message, text, sizeof(req.message) - 1);
+    sceKernelSendNotificationRequest(0, &req, sizeof(req), 0);
+}
+
+// ============ بيانات ============
 struct ErrEntry {
     std::string code, title, meaning;
     std::vector<std::string> causes, fixes;
@@ -24,13 +37,7 @@ struct ErrEntry {
 static std::vector<ErrEntry> gErrors;
 static int gUser = -1, gPad = -1;
 
-// ===================== إشعار النظام =====================
-static void notify(const char* text) {
-    // 222 = جميع المستخدمين — نفس نمط إشعارات GoldHEN
-    sceSysUtilSendSystemNotificationWithText(222, text);
-}
-
-// ===================== أدوات نص =====================
+// ============ أدوات نص ============
 static std::string readAll(const char* path) {
     FILE* f = fopen(path, "rb");
     if (!f) return "";
@@ -78,7 +85,7 @@ static std::vector<std::string> arrayField(const std::string& o, const std::stri
     return out;
 }
 
-// ===================== تحميل قاعدة الأخطاء =====================
+// ============ تحميل قاعدة الأخطاء ============
 static void loadErrors() {
     gErrors.clear();
     std::string raw = readAll("/app0/data/errors.json");
@@ -106,28 +113,28 @@ static void loadErrors() {
     }
 }
 
-// ===================== فحص التخزين =====================
+// ============ فحص التخزين ============
 static void showStorage() {
     const char* mounts[] = {"/user", "/data", "/system_data", "/app", "/mnt/usb0"};
-    printf("\n=== تحليل التخزين ===\n\n");
+    printf("\n=== Storage Analysis ===\n\n");
     for (int i = 0; i < 5; i++) {
         struct statvfs st;
         if (statvfs(mounts[i], &st) != 0) {
-            printf("  [--] %-14s غير متاح\n", mounts[i]);
+            printf("  [--] %-14s N/A\n", mounts[i]);
             continue;
         }
         double total = (double)st.f_blocks * st.f_frsize;
         double freeb = (double)st.f_bavail * st.f_frsize;
         double used  = total - freeb;
         int pct = total > 0 ? (int)((used / total) * 100.0) : 0;
-        printf("  [OK] %-14s مستخدم %3d%%  |  فارغ %.1f GB / %.1f GB\n",
+        printf("  [OK] %-14s used %3d%% | free %.1f GB / %.1f GB\n",
                mounts[i], pct,
                freeb / (1024.0 * 1024 * 1024),
                total / (1024.0 * 1024 * 1024));
     }
 }
 
-// ===================== تنظيف آمن =====================
+// ============ تنظيف آمن ============
 static void cleanPath(const char* path, int* count, unsigned long long* freed) {
     DIR* d = opendir(path);
     if (!d) return;
@@ -153,22 +160,21 @@ static void runCleaner() {
     int count = 0;
     unsigned long long freed = 0;
 
-    printf("\n=== تنظيف الكاش الآمن ===\n\n");
+    printf("\n=== Safe Cache Cleaner ===\n\n");
     for (int i = 0; i < 3; i++) {
-        printf("  فحص: %s\n", targets[i]);
+        printf("  scan: %s\n", targets[i]);
         cleanPath(targets[i], &count, &freed);
     }
 
-    printf("\n  حُذف: %d ملف | حُرّر: %.2f MB\n", count, freed / (1024.0 * 1024));
+    printf("\n  deleted: %d files | freed: %.2f MB\n", count, freed / (1024.0 * 1024));
 
-    // إشعار النظام الحقيقي
     notify("Clean Cache Success - Dev by Amir");
 
     printf("\n  [ SUCCESS ] Clean Cache Success\n");
     printf("              Dev by Amir\n");
 }
 
-// ===================== إدخال =====================
+// ============ إدخال ============
 static int pollPad() {
     if (gPad < 0) return 0;
     OrbisPadData d;
@@ -195,33 +201,33 @@ static void waitCircle() {
     }
 }
 
-// ===================== شاشة تفاصيل خطأ =====================
+// ============ تفاصيل خطأ ============
 static void showError(const ErrEntry& e) {
     printf("\033[2J\033[H");
     printf("==========================================\n");
     printf("  %s\n", e.code.c_str());
     printf("  %s\n", e.title.c_str());
     printf("==========================================\n\n");
-    printf("المعنى:\n  %s\n\n", e.meaning.c_str());
+    printf("Meaning:\n  %s\n\n", e.meaning.c_str());
 
-    printf("الأسباب المحتملة:\n");
+    printf("Causes:\n");
     for (size_t i = 0; i < e.causes.size(); i++)
         printf("  %d) %s\n", (int)i + 1, e.causes[i].c_str());
 
-    printf("\nالحلول:\n");
+    printf("\nFixes:\n");
     for (size_t i = 0; i < e.fixes.size(); i++)
         printf("  %d) %s\n", (int)i + 1, e.fixes[i].c_str());
 
-    printf("\n  [O] رجوع\n");
+    printf("\n  [O] back\n");
     waitCircle();
 }
 
-// ===================== قائمة الأخطاء =====================
+// ============ قائمة الأخطاء ============
 static void errorListScreen() {
     printf("\033[2J\033[H");
     if (gErrors.empty()) {
-        printf("تعذّر تحميل errors.json من /app0/data/\n");
-        printf("\n  [O] رجوع\n");
+        printf("Could not load errors.json from /app0/data/\n");
+        printf("\n  [O] back\n");
         waitCircle();
         return;
     }
@@ -231,7 +237,7 @@ static void errorListScreen() {
 
     while (true) {
         printf("\033[2J\033[H");
-        printf("=== محلل الأخطاء (%d كوداً) ===\n\n", (int)gErrors.size());
+        printf("=== Error Analyzer (%d codes) ===\n\n", (int)gErrors.size());
 
         for (int i = top; i < top + WIN && i < (int)gErrors.size(); i++) {
             printf("  %s %02d. %-14s %s\n",
@@ -241,7 +247,7 @@ static void errorListScreen() {
                    gErrors[i].title.c_str());
         }
 
-        printf("\n  [X] فتح   [Up/Down] تنقّل   [O] رجوع\n");
+        printf("\n  [X] open   [Up/Down] move   [O] back\n");
 
         int b = pollPad();
         if (b == 1 && sel > 0) sel--;
@@ -255,14 +261,14 @@ static void errorListScreen() {
     }
 }
 
-// ===================== القائمة الرئيسية =====================
+// ============ القائمة الرئيسية ============
 static void menu() {
     int sel = 0;
     const int N = 3;
     const char* labels[3] = {
-        "محلل أخطاء النظام",
-        "تحليل مساحة التخزين",
-        "تنظيف الكاش الآمن"
+        "Error Analyzer",
+        "Storage Analysis",
+        "Safe Cache Cleaner"
     };
 
     while (true) {
@@ -275,8 +281,8 @@ static void menu() {
         for (int i = 0; i < N; i++)
             printf("   %s %s\n", (i == sel ? ">>" : "  "), labels[i]);
 
-        printf("\n   الأكواد المحمّلة: %d\n", (int)gErrors.size());
-        printf("\n   [X] اختيار   [Up/Down] تنقّل   [O] خروج\n");
+        printf("\n   Codes loaded: %d\n", (int)gErrors.size());
+        printf("\n   [X] select   [Up/Down] move   [O] exit\n");
 
         int b = pollPad();
         if (b == 1 && sel > 0) sel--;
@@ -287,12 +293,12 @@ static void menu() {
             } else if (sel == 1) {
                 printf("\033[2J\033[H");
                 showStorage();
-                printf("\n  [O] رجوع\n");
+                printf("\n  [O] back\n");
                 waitCircle();
             } else {
                 printf("\033[2J\033[H");
                 runCleaner();
-                printf("\n  [O] رجوع\n");
+                printf("\n  [O] back\n");
                 waitCircle();
             }
         } else if (b == 4) {
@@ -302,7 +308,7 @@ static void menu() {
     }
 }
 
-// ===================== نقطة الدخول =====================
+// ============ نقطة الدخول ============
 int main() {
     OrbisUserServiceInitializeParams up;
     memset(&up, 0, sizeof(up));
@@ -311,7 +317,7 @@ int main() {
     sceUserServiceGetForegroundUser(&gUser);
 
     scePadInit();
-    gPad = scePadOpen(gUser, 0, 0, NULL);
+    gPad = scePadOpen(gUser, 0, 0, nullptr);
 
     loadErrors();
 
